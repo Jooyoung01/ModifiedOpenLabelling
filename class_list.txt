@@ -1,4 +1,1 @@
-closed_door
-opened_door
-bus
-number
+tree

@@ -23,9 +23,9 @@ except:
     WITH_QT = False
 cv2.destroyAllWindows()
 
-bbox_thickness = 2
+bbox_thickness = 1
 
-parser = argparse.ArgumentParser(description='YOLO v2 Bounding Box Tool')
+parser = argparse.ArgumentParser(description='YOLO Bounding Box Tool')
 parser.add_argument('--format', default='yolo', type=str, choices=['yolo', 'voc'], help="Bounding box format")
 parser.add_argument('--sort', action='store_true', help="If true, shows images in order.")
 parser.add_argument('--cross-thickness', default='1', type=int, help="Cross thickness")
@@ -73,7 +73,6 @@ def change_class_index(x):
     else:
         print("Selected class :" + class_list[class_index])
 
-
 def draw_edges(tmp_img):
     blur = cv2.bilateralFilter(tmp_img, 3, 75, 75)
     edges = cv2.Canny(blur, 150, 250, 3)
@@ -83,13 +82,11 @@ def draw_edges(tmp_img):
     #tmp_img = cv2.addWeighted(tmp_img, 1 - edges_val, edges, edges_val, 0)
     return tmp_img
 
-
 def decrease_index(current_index, last_index):
     current_index -= 1
     if current_index < 0:
         current_index = last_index
     return current_index
-
 
 def increase_index(current_index, last_index):
     current_index += 1
@@ -97,11 +94,9 @@ def increase_index(current_index, last_index):
         current_index = 0
     return current_index
 
-
 def draw_line(img, x, y, height, width, color):
     cv2.line(img, (x, 0), (x, height), color, thickness=args.cross_thickness)
     cv2.line(img, (0, y), (width, y), color, thickness=args.cross_thickness)
-
 
 def yolo_format(class_index, point_1, point_2, width, height):
     # YOLO wants everything normalized
@@ -122,17 +117,14 @@ def voc_format(class_index, point_1, point_2):
     items = map(str, [xmin, ymin, xmax, ymax, class_index])
     return ' '.join(items)
 
-
 def get_txt_path(img_path):
     img_name = os.path.basename(os.path.normpath(img_path))
     img_type = img_path.split('.')[-1]
     return bb_dir + img_name.replace(img_type, 'txt')
 
-
 def save_bb(txt_path, line):
     with open(txt_path, 'a') as myfile:
         myfile.write(line + "\n") # append line
-
 
 def delete_bb(txt_path, line_index):
     with open(txt_path, "r") as old_file:
@@ -145,7 +137,6 @@ def delete_bb(txt_path, line_index):
                 new_file.write(line)
             counter += 1
 
-
 def yolo_to_x_y(x_center, y_center, x_width, y_height, width, height):
     x_center *= width
     y_center *= height
@@ -155,12 +146,50 @@ def yolo_to_x_y(x_center, y_center, x_width, y_height, width, height):
     y_height /= 2.0
     return int(x_center - x_width), int(y_center - y_height), int(x_center + x_width), int(y_center + y_height)
 
-
 def draw_text(tmp_img, text, center, color, size):
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(tmp_img, text, center, font, 0.7, color, size, cv2.FONT_HERSHEY_COMPLEX_SMALL)
     return tmp_img
 
+# def draw_bboxes_from_file(tmp_img, txt_path, width, height):
+#     global img_objects
+#     img_objects = []
+#     if os.path.isfile(txt_path):
+#         with open(txt_path) as f:
+#             content = f.readlines()
+#         for line in content:
+#             values_str = line.split()
+#             if args.format == 'yolo':
+#                 print(list(map(float, values_str))) ##########
+#                 ##########
+#                 #class_index, x_center, y_center, x_width, y_height = map(float, values_str)
+
+#                 class_index, x_center, y_center, x_width, y_height, confid = map(float, values_str)
+#                 class_index = int(class_index)
+#                 # convert yolo to points
+#                 x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width, height)
+#                 if x_center == int(x_center):
+#                     error = ("You selected the 'yolo' format but your labels "
+#                              "seem to be in a different format. Consider "
+#                              "removing your old label files.")
+#                     raise Exception(textwrap.fill(error, 70))
+#             elif args.format == 'voc':
+#                 try:
+#                     x1, y1, x2, y2, class_index = map(int, values_str)
+#                 except ValueError:
+#                     error = ("You selected the 'voc' format but your labels "
+#                              "seem to be in a different format. Consider "
+#                              "removing your old label files.")
+#                     raise Exception(textwrap.fill(error, 70))
+#                 x1, y1, x2, y2 = x1-1, y1-1, x2-1, y2-1
+#             img_objects.append([class_index, x1, y1, x2, y2])
+#             color = class_rgb[class_index].tolist()
+#             cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
+#             print(class_list[class_index]+'_'+str(confid)) ##########
+#             ##########
+#             #tmp_img = draw_text(tmp_img, class_list[class_index], (x1, y1 - 5), color, args.bbox_thickness)
+#             tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
+#     return tmp_img
 def draw_bboxes_from_file(tmp_img, txt_path, width, height):
     global img_objects
     img_objects = []
@@ -170,9 +199,12 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
         for line in content:
             values_str = line.split()
             if args.format == 'yolo':
-                class_index, x_center, y_center, x_width, y_height = map(float, values_str)
+                if len(values_str) == 5:
+                    class_index, x_center, y_center, x_width, y_height = map(float, values_str)
+                    confid = 1.0  # confidence 1.0
+                else:
+                    class_index, x_center, y_center, x_width, y_height, confid = map(float, values_str)
                 class_index = int(class_index)
-                # convert yolo to points
                 x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width, height)
                 if x_center == int(x_center):
                     error = ("You selected the 'yolo' format but your labels "
@@ -191,15 +223,13 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
             img_objects.append([class_index, x1, y1, x2, y2])
             color = class_rgb[class_index].tolist()
             cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
-            tmp_img = draw_text(tmp_img, class_list[class_index], (x1, y1 - 5), color, args.bbox_thickness)
+            tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
     return tmp_img
-
 
 def get_bbox_area(x1, y1, x2, y2):
     width = abs(x2 - x1)
     height = abs(y2 - y1)
     return width*height
-
 
 def set_selected_bbox():
     global is_bbox_selected, selected_bbox
@@ -213,7 +243,6 @@ def set_selected_bbox():
             if tmp_area < smallest_area or smallest_area == -1:
                 smallest_area = tmp_area
                 selected_bbox = idx
-
 
 def mouse_inside_delete_button():
     for idx, obj in enumerate(img_objects):
@@ -466,11 +495,8 @@ while True:
         bad_path=img_path
         bad_text=txt_path
 
-
         img_index = increase_index(img_index, last_img_index)
         cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
-
-
 
         if img_index == 0:
             del image_list[last_img_index]
@@ -557,8 +583,6 @@ while True:
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
-
-
 
     # help key listener
     elif pressed_key == ord('h'):
