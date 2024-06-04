@@ -9,9 +9,9 @@ import cv2
 bin_bbox_path = 'bin/bbox_txt'
 bin_images_path = 'bin/images'
 
-if os.path.isdir(bin_bbox_path) == False:
+if not os.path.isdir(bin_bbox_path):
     os.makedirs(bin_bbox_path)
-if os.path.isdir(bin_images_path) == False:
+if not os.path.isdir(bin_images_path):
     os.makedirs(bin_images_path)
 
 WITH_QT = True
@@ -34,6 +34,8 @@ args = parser.parse_args()
 class_index = 0
 img_index = 0
 img = None
+channels = []
+channel_index = 0
 img_objects = []
 bb_dir = "bbox_txt/"
 
@@ -50,10 +52,16 @@ point_2 = (-1, -1)
 show_labels = True  # 플래그 변수 추가
 
 def change_img_index(x):
-    global img_index, img
+    global img_index, img, channels, channel_index
     img_index = x
     img_path = image_list[img_index]
-    img = cv2.imread(img_path)
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    if img.ndim == 2:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    elif img.shape[2] == 4:
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+    channels = [img] + [cv2.cvtColor(c, cv2.COLOR_GRAY2BGR) for c in cv2.split(img)]
+    channel_index = 0
     if WITH_QT:
         cv2.displayOverlay(WINDOW_NAME, "Showing image "
                                     "" + str(img_index) + "/"
@@ -75,6 +83,8 @@ def change_class_index(x):
         print("Selected class :" + class_list[class_index])
 
 def draw_edges(tmp_img):
+    if tmp_img.ndim == 2:
+        tmp_img = cv2.cvtColor(tmp_img, cv2.COLOR_GRAY2BGR)
     blur = cv2.bilateralFilter(tmp_img, 3, 75, 75)
     edges = cv2.Canny(blur, 150, 250, 3)
     edges = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
@@ -128,7 +138,7 @@ def delete_bb(txt_path, line_index):
     with open(txt_path, "w") as new_file:
         counter = 0
         for line in lines:
-            if counter is not line_index:
+            if counter != line_index:
                 new_file.write(line)
             counter += 1
 
@@ -154,12 +164,18 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
             content = f.readlines()
         for line in content:
             values_str = line.split()
+            print("Line values:", values_str)  # Debug print to see the values being read
             if args.format == 'yolo':
                 if len(values_str) == 5:
                     class_index, x_center, y_center, x_width, y_height = map(float, values_str)
                     confid = 1.0  # confidence 1.0
-                else:
+                elif len(values_str) == 6:
                     class_index, x_center, y_center, x_width, y_height, confid = map(float, values_str)
+                else:
+                    error = ("You selected the 'yolo' format but your labels "
+                             "seem to be in a different format. Consider "
+                             "removing your old label files.")
+                    raise Exception(textwrap.fill(error, 70))
                 class_index = int(class_index)
                 x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width, height)
                 if x_center == int(x_center):
@@ -220,7 +236,7 @@ def delete_selected_bbox():
     with open(txt_path, "w") as new_file:
         counter = 0
         for line in lines:
-            if counter is not selected_bbox:
+            if counter != selected_bbox:
                 new_file.write(line)
             counter += 1
 
@@ -286,8 +302,8 @@ def remove_bad_data(img_path, img_path_txt):
     img_name = img_path.split('/')[-1]
     txt_name = img_path_txt.split('/')[-1]
 
-    os.rename(img_path,os.path.join('bin/images', img_name))
-    os.rename(img_path_txt,os.path.join('bin/bbox_txt', txt_name))
+    os.rename(img_path, os.path.join('bin/images', img_name))
+    os.rename(img_path_txt, os.path.join('bin/bbox_txt', txt_name))
 
 img_dir = "images/"
 image_list = []
@@ -324,7 +340,7 @@ if num_colors_missing > 0:
 
 WINDOW_NAME = 'Bounding Box Labeler'
 cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO)
-cv2.resizeWindow(WINDOW_NAME,500, 500)
+cv2.resizeWindow(WINDOW_NAME, 500, 500)
 cv2.setMouseCallback(WINDOW_NAME, mouse_listener)
 
 TRACKBAR_IMG = 'Image'
@@ -343,7 +359,7 @@ print(" Welcome!\n Select the window and press [h] for help.")
 
 color = class_rgb[class_index].tolist()
 while True:
-    tmp_img = img.copy()
+    tmp_img = channels[channel_index].copy()
     height, width = tmp_img.shape[:2]
     if edges_on == True:
         tmp_img = draw_edges(tmp_img)
@@ -391,8 +407,8 @@ while True:
         cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('r'):
-        bad_path=img_path
-        bad_text=txt_path
+        bad_path = img_path
+        bad_text = txt_path
 
         img_index = increase_index(img_index, last_img_index)
         cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
@@ -416,64 +432,64 @@ while True:
         cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
 
     elif pressed_key == ord('1'):
-        if len(class_list)>=1:
-            class_index=0
+        if len(class_list) >= 1:
+            class_index = 0
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('2'):
         if len(class_list) >= 2:
-            class_index=1
+            class_index = 1
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('3'):
         if len(class_list) >= 3:
-            class_index=2
+            class_index = 2
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('4'):
         if len(class_list) >= 4:
-            class_index=3
+            class_index = 3
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('5'):
         if len(class_list) >= 5:
-            class_index=4
+            class_index = 4
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('6'):
         if len(class_list) >= 6:
-            class_index=5
+            class_index = 5
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('7'):
         if len(class_list) >= 7:
-            class_index=6
+            class_index = 6
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('8'):
         if len(class_list) >= 8:
-            class_index=7
+            class_index = 7
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     elif pressed_key == ord('9'):
         if len(class_list) >= 9:
-            class_index=8
+            class_index = 8
             color = class_rgb[class_index].tolist()
             draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
             cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
@@ -485,6 +501,7 @@ while True:
                                 "[a] or [d] to change Image;\n"
                                 "[w] or [s] to change Class.\n"
                                 "[l] to toggle labels on/off.\n"
+                                "[b] to cycle channels.\n"
                                 "%s" % img_path, 6000)
         else:
             print("[e] to show edges;\n"
@@ -492,6 +509,7 @@ while True:
                     "[a] or [d] to change Image;\n"
                     "[w] or [s] to change Class.\n"
                     "[l] to toggle labels on/off.\n"
+                    "[b] to cycle channels.\n"
                     "%s" % img_path)
     elif pressed_key == ord('e'):
         edges_on = not edges_on
@@ -499,7 +517,7 @@ while True:
             cv2.displayOverlay(WINDOW_NAME, "Edges turned {}".format("ON" if edges_on else "OFF"), 1000)
         else:
             print("Edges turned {}".format("ON" if edges_on else "OFF"))
-            
+
     elif pressed_key == ord('q'):
         break
 
@@ -509,10 +527,18 @@ while True:
             cv2.displayOverlay(WINDOW_NAME, "Labels {}".format("ON" if show_labels else "OFF"), 1000)
         else:
             print("Labels {}".format("ON" if show_labels else "OFF"))
+
+    elif pressed_key == ord('b'):  # 'b' key to cycle through channels
+        channel_index = (channel_index + 1) % len(channels)
+        if WITH_QT:
+            cv2.displayOverlay(WINDOW_NAME, "Channel {}".format(channel_index), 1000)
+        else:
+            print("Channel {}".format(channel_index))
+
     """ Key Listeners END """
 
     if WITH_QT:
-        if cv2.getWindowProperty(WINDOW_NAME,cv2.WND_PROP_VISIBLE) < 1:
+        if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
             break
 
 cv2.destroyAllWindows()
