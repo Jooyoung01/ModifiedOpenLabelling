@@ -164,7 +164,7 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
             content = f.readlines()
         for line in content:
             values_str = line.split()
-            print("Line values:", values_str)  # Debug print to see the values being read
+            print(f"Processing line: {values_str}")  # Debug print to see the values being read
             if args.format == 'yolo':
                 if len(values_str) == 5:
                     class_index, x_center, y_center, x_width, y_height = map(float, values_str)
@@ -178,11 +178,11 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                     raise Exception(textwrap.fill(error, 70))
                 class_index = int(class_index)
                 x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width, height)
-                if x_center == int(x_center):
-                    error = ("You selected the 'yolo' format but your labels "
-                             "seem to be in a different format. Consider "
-                             "removing your old label files.")
-                    raise Exception(textwrap.fill(error, 70))
+                img_objects.append([class_index, x1, y1, x2, y2])
+                color = class_rgb[class_index].tolist()
+                cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
+                if show_labels:  # show_labels flag
+                    tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
             elif args.format == 'voc':
                 try:
                     x1, y1, x2, y2, class_index = map(int, values_str)
@@ -192,11 +192,11 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                              "removing your old label files.")
                     raise Exception(textwrap.fill(error, 70))
                 x1, y1, x2, y2 = x1-1, y1-1, x2-1, y2-1
-            img_objects.append([class_index, x1, y1, x2, y2])
-            color = class_rgb[class_index].tolist()
-            cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
-            if show_labels:  # show_labels flag
-                tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
+                img_objects.append([class_index, x1, y1, x2, y2])
+                color = class_rgb[class_index].tolist()
+                cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
+                if show_labels:  # show_labels flag
+                    tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
     return tmp_img
 
 def get_bbox_area(x1, y1, x2, y2):
@@ -367,7 +367,12 @@ while True:
     img_path = image_list[img_index]
     txt_path = get_txt_path(img_path)
 
-    tmp_img = draw_bboxes_from_file(tmp_img, txt_path, width, height)
+    try:
+        tmp_img = draw_bboxes_from_file(tmp_img, txt_path, width, height)
+    except Exception as e:
+        print(f"Error processing file {txt_path}: {e}")
+        continue
+
     if is_bbox_selected:
         tmp_img = draw_info_bb_selected(tmp_img)
     if point_1[0] != -1:
