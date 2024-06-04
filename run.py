@@ -55,6 +55,33 @@ point_2 = (-1, -1)
 
 show_labels = True  # label Flag
 
+# Information window setup
+INFO_WINDOW = 'Info Window'
+cv2.namedWindow(INFO_WINDOW, cv2.WINDOW_NORMAL)
+cv2.resizeWindow(INFO_WINDOW, 400, 300)
+
+def update_info_window():
+    info_img = np.zeros((300, 400, 3), dtype=np.uint8)
+    filename = os.path.basename(image_list[img_index])
+    total_labels = len(img_objects)
+    img_height, img_width = img.shape[:2]
+    help_text = "[h] for help\n[a/d] to change image\n[w/s] to change class\n[l] to toggle labels\n[b] to cycle channels"
+    y0, dy = 20, 20
+
+    channel_name = "BGR" if channel_index == 0 else f"Channel {channel_index} ({['Blue', 'Green', 'Red'][channel_index - 1]})"
+
+    for i, line in enumerate(help_text.split('\n')):
+        y = y0 + i*dy
+        cv2.putText(info_img, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    
+    cv2.putText(info_img, f"File: {filename}", (10, y0 + (len(help_text.split('\n'))+1)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Total Labels: {total_labels}", (10, y0 + (len(help_text.split('\n'))+2)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Channel: {channel_name}", (10, y0 + (len(help_text.split('\n'))+3)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Image Size: {img_width}x{img_height}", (10, y0 + (len(help_text.split('\n'))+4)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Labels: {'ON' if show_labels else 'OFF'}", (10, y0 + (len(help_text.split('\n'))+5)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.imshow(INFO_WINDOW, info_img)
+
 def change_img_index(x):
     global img_index, img, channels, channel_index
     img_index = x
@@ -74,6 +101,7 @@ def change_img_index(x):
         print("Showing image "
                 "" + str(img_index) + "/"
                 "" + str(last_img_index) + " path:" + img_path)
+    update_info_window()
 
 def change_class_index(x):
     global class_index
@@ -85,6 +113,7 @@ def change_class_index(x):
                                 "\n " + class_list[class_index],3000)
     else:
         print("Selected class :" + class_list[class_index])
+    update_info_window()
 
 def draw_edges(tmp_img):
     if tmp_img.ndim == 2:
@@ -144,6 +173,7 @@ def save_bb(txt_path, line):
     new_txt_path = copy_to_new_label(txt_path)
     with open(new_txt_path, 'a') as myfile:
         myfile.write(line + "\n")
+    update_info_window()
 
 def delete_bb(txt_path, line_index):
     new_txt_path = copy_to_new_label(txt_path)
@@ -156,6 +186,7 @@ def delete_bb(txt_path, line_index):
             if counter != line_index:
                 new_file.write(line)
             counter += 1
+    update_info_window()
 
 def yolo_to_x_y(x_center, y_center, x_width, y_height, width, height):
     x_center *= width
@@ -230,6 +261,7 @@ def set_selected_bbox():
             if tmp_area < smallest_area or smallest_area == -1:
                 smallest_area = tmp_area
                 selected_bbox = idx
+    update_info_window()
 
 def mouse_inside_delete_button():
     for idx, obj in enumerate(img_objects):
@@ -254,6 +286,7 @@ def delete_selected_bbox():
             if counter != selected_bbox:
                 new_file.write(line)
             counter += 1
+    update_info_window()
 
 # mouse callback function
 def mouse_listener(event, x, y, flags, param):
@@ -285,6 +318,7 @@ def mouse_listener(event, x, y, flags, param):
             threshold = 5
             if abs(x - point_1[0]) > threshold or abs(y - point_1[1]) > threshold:
                 point_2 = (x, y)
+        update_info_window()
 
 def is_mouse_inside_points(x1, y1, x2, y2):
     return mouse_x > x1 and mouse_x < x2 and mouse_y > y1 and mouse_y < y2
@@ -407,6 +441,7 @@ while True:
                                     "\nPress [w] or [s] to change.", 120)
 
     cv2.imshow(WINDOW_NAME, tmp_img)
+    update_info_window()
     pressed_key = cv2.waitKey(50)
 
     """ Key Listeners START """
