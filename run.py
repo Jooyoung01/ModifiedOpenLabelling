@@ -2,17 +2,21 @@ import argparse
 import textwrap
 import glob
 import os
+import shutil
 
 import numpy as np
 import cv2
 
 bin_bbox_path = 'bin/bbox_txt'
 bin_images_path = 'bin/images'
+new_label_path = 'new_label'
 
 if not os.path.isdir(bin_bbox_path):
     os.makedirs(bin_bbox_path)
 if not os.path.isdir(bin_images_path):
     os.makedirs(bin_images_path)
+if not os.path.isdir(new_label_path):
+    os.makedirs(new_label_path)
 
 WITH_QT = True
 try:
@@ -49,7 +53,7 @@ mouse_y = 0
 point_1 = (-1, -1)
 point_2 = (-1, -1)
 
-show_labels = True  # 플래그 변수 추가
+show_labels = True  # label Flag
 
 def change_img_index(x):
     global img_index, img, channels, channel_index
@@ -114,7 +118,7 @@ def yolo_format(class_index, point_1, point_2, width, height):
     x_width = float(abs(point_2[0] - point_1[0])) / width
     y_height = float(abs(point_2[1] - point_1[1])) / height
     return str(class_index) + " " + str(x_center) \
-       + " " + str(y_center) + " " + str(x_width) + " " + str(y_height)
+        + " " + str(y_center) + " " + str(x_width) + " " + str(y_height)
 
 def voc_format(class_index, point_1, point_2):
     xmin, ymin = min(point_1[0], point_2[0]) + 1, min(point_1[1], point_2[1]) + 1
@@ -125,17 +129,28 @@ def voc_format(class_index, point_1, point_2):
 def get_txt_path(img_path):
     img_name = os.path.basename(os.path.normpath(img_path))
     img_type = img_path.split('.')[-1]
-    return bb_dir + img_name.replace(img_type, 'txt')
+    new_txt_path = os.path.join(new_label_path, img_name.replace(img_type, 'txt'))
+    if os.path.exists(new_txt_path):
+        return new_txt_path
+    return os.path.join(bb_dir, img_name.replace(img_type, 'txt'))
+
+def copy_to_new_label(txt_path):
+    new_txt_path = os.path.join(new_label_path, os.path.basename(txt_path))
+    if not os.path.exists(new_txt_path):
+        shutil.copy(txt_path, new_txt_path)
+    return new_txt_path
 
 def save_bb(txt_path, line):
-    with open(txt_path, 'a') as myfile:
+    new_txt_path = copy_to_new_label(txt_path)
+    with open(new_txt_path, 'a') as myfile:
         myfile.write(line + "\n")
 
 def delete_bb(txt_path, line_index):
-    with open(txt_path, "r") as old_file:
+    new_txt_path = copy_to_new_label(txt_path)
+    with open(new_txt_path, "r") as old_file:
         lines = old_file.readlines()
 
-    with open(txt_path, "w") as new_file:
+    with open(new_txt_path, "w") as new_file:
         counter = 0
         for line in lines:
             if counter != line_index:
@@ -164,7 +179,7 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
             content = f.readlines()
         for line in content:
             values_str = line.split()
-            print(f"Processing line: {values_str}")  # Debug print to see the values being read
+            # print(f"Processing line: {values_str}")  # Debug print to see the values being read
             if args.format == 'yolo':
                 if len(values_str) == 5:
                     class_index, x_center, y_center, x_width, y_height = map(float, values_str)
@@ -173,8 +188,8 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                     class_index, x_center, y_center, x_width, y_height, confid = map(float, values_str)
                 else:
                     error = ("You selected the 'yolo' format but your labels "
-                             "seem to be in a different format. Consider "
-                             "removing your old label files.")
+                            "seem to be in a different format. Consider "
+                            "removing your old label files.")
                     raise Exception(textwrap.fill(error, 70))
                 class_index = int(class_index)
                 x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width, height)
@@ -188,8 +203,8 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                     x1, y1, x2, y2, class_index = map(int, values_str)
                 except ValueError:
                     error = ("You selected the 'voc' format but your labels "
-                             "seem to be in a different format. Consider "
-                             "removing your old label files.")
+                            "seem to be in a different format. Consider "
+                            "removing your old label files.")
                     raise Exception(textwrap.fill(error, 70))
                 x1, y1, x2, y2 = x1-1, y1-1, x2-1, y2-1
                 img_objects.append([class_index, x1, y1, x2, y2])
@@ -322,7 +337,7 @@ if not os.path.exists(bb_dir):
 for img_path in image_list:
     txt_path = get_txt_path(img_path)
     if not os.path.isfile(txt_path):
-         open(txt_path, 'a').close()
+        open(txt_path, 'a').close()
 
 with open('class_list.txt') as f:
     class_list = f.read().splitlines()
@@ -348,7 +363,7 @@ cv2.createTrackbar(TRACKBAR_IMG, WINDOW_NAME, 0, last_img_index, change_img_inde
 
 TRACKBAR_CLASS = 'Class'
 if last_class_index != 0:
-  cv2.createTrackbar(TRACKBAR_CLASS, WINDOW_NAME, 0, last_class_index, change_class_index)
+    cv2.createTrackbar(TRACKBAR_CLASS, WINDOW_NAME, 0, last_class_index, change_class_index)
 
 change_img_index(0)
 edges_on = False
