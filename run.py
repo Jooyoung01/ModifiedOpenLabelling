@@ -68,7 +68,7 @@ def update_info_window():
     help_text = "[h] for help\n[a/d] to change image\n[w/s] to change class\n[l] to toggle labels\n[b] to cycle channels"
     y0, dy = 20, 20
 
-    channel_name = "BGR" if channel_index == 0 else f"Channel {channel_index} ({['Blue', 'Green', 'Red'][channel_index - 1]})"
+    channel_name = ["BGR", "Blue", "Green", "Red", "NIR"][channel_index] if channel_index < 5 else f"Channel {channel_index}"
 
     for i, line in enumerate(help_text.split('\n')):
         y = y0 + i*dy
@@ -89,9 +89,7 @@ def change_img_index(x):
     img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
     if img.ndim == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    elif img.shape[2] == 4:
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-    channels = [img] + [cv2.cvtColor(c, cv2.COLOR_GRAY2BGR) for c in cv2.split(img)]
+    channels = create_color_channels(img)
     channel_index = 0
     if WITH_QT:
         cv2.displayOverlay(WINDOW_NAME, "Showing image "
@@ -102,6 +100,21 @@ def change_img_index(x):
                 "" + str(img_index) + "/"
                 "" + str(last_img_index) + " path:" + img_path)
     update_info_window()
+
+def create_color_channels(img):
+    channels = [img]
+    if img.shape[2] == 3:
+        b, g, r = cv2.split(img)
+        channels += [cv2.merge([b, np.zeros_like(b), np.zeros_like(b)]),
+                     cv2.merge([np.zeros_like(g), g, np.zeros_like(g)]),
+                     cv2.merge([np.zeros_like(r), np.zeros_like(r), r])]
+    elif img.shape[2] == 4:
+        b, g, r, nir = cv2.split(img)
+        channels += [cv2.merge([b, np.zeros_like(b), np.zeros_like(b)]),
+                     cv2.merge([np.zeros_like(g), g, np.zeros_like(g)]),
+                     cv2.merge([np.zeros_like(r), np.zeros_like(r), r]),
+                     cv2.merge([nir, nir, nir])]
+    return channels
 
 def change_class_index(x):
     global class_index
