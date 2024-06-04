@@ -54,6 +54,7 @@ point_1 = (-1, -1)
 point_2 = (-1, -1)
 
 show_labels = True  # label Flag
+edges_on = False  # edges Flag
 
 # Information window setup
 INFO_WINDOW = 'Info Window'
@@ -71,14 +72,15 @@ def update_info_window():
     channel_name = ["BGR", "Blue", "Green", "Red", "NIR"][channel_index] if channel_index < 5 else f"Channel {channel_index}"
 
     for i, line in enumerate(help_text.split('\n')):
-        y = y0 + i*dy
+        y = y0 + i * dy
         cv2.putText(info_img, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    
-    cv2.putText(info_img, f"File: {filename}", (10, y0 + (len(help_text.split('\n'))+1)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(info_img, f"Total Labels: {total_labels}", (10, y0 + (len(help_text.split('\n'))+2)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(info_img, f"Channel: {channel_name}", (10, y0 + (len(help_text.split('\n'))+3)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(info_img, f"Image Size: {img_width}x{img_height}", (10, y0 + (len(help_text.split('\n'))+4)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(info_img, f"Labels: {'ON' if show_labels else 'OFF'}", (10, y0 + (len(help_text.split('\n'))+5)*dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(info_img, f"File: {filename}", (10, y0 + (len(help_text.split('\n')) + 1) * dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Total Labels: {total_labels}", (10, y0 + (len(help_text.split('\n')) + 2) * dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Channel: {channel_name}", (10, y0 + (len(help_text.split('\n')) + 3) * dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Image Size: {img_width}x{img_height}", (10, y0 + (len(help_text.split('\n')) + 4) * dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Labels: {'ON' if show_labels else 'OFF'}", (10, y0 + (len(help_text.split('\n')) + 5) * dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(info_img, f"Edges: {'ON' if edges_on else 'OFF'}", (10, y0 + (len(help_text.split('\n')) + 6) * dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
     cv2.imshow(INFO_WINDOW, info_img)
 
@@ -131,6 +133,8 @@ def change_class_index(x):
 def draw_edges(tmp_img):
     if tmp_img.ndim == 2:
         tmp_img = cv2.cvtColor(tmp_img, cv2.COLOR_GRAY2BGR)
+    elif tmp_img.shape[2] > 3:
+        tmp_img = tmp_img[:, :, :3]
     blur = cv2.bilateralFilter(tmp_img, 3, 75, 75)
     edges = cv2.Canny(blur, 150, 250, 3)
     edges = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
@@ -241,7 +245,7 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                 color = class_rgb[class_index].tolist()
                 cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
                 if show_labels:  # show_labels flag
-                    tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
+                    tmp_img = draw_text(tmp_img, class_list[class_index] + '_' + str(confid), (x1, y1 - 5), color, args.bbox_thickness)
             elif args.format == 'voc':
                 try:
                     x1, y1, x2, y2, class_index = map(int, values_str)
@@ -250,18 +254,18 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                             "seem to be in a different format. Consider "
                             "removing your old label files.")
                     raise Exception(textwrap.fill(error, 70))
-                x1, y1, x2, y2 = x1-1, y1-1, x2-1, y2-1
+                x1, y1, x2, y2 = x1 - 1, y1 - 1, x2 - 1, y2 - 1
                 img_objects.append([class_index, x1, y1, x2, y2])
                 color = class_rgb[class_index].tolist()
                 cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
                 if show_labels:  # show_labels flag
-                    tmp_img = draw_text(tmp_img, class_list[class_index]+'_'+str(confid), (x1, y1 - 5), color, args.bbox_thickness)
+                    tmp_img = draw_text(tmp_img, class_list[class_index] + '_' + str(confid), (x1, y1 - 5), color, args.bbox_thickness)
     return tmp_img
 
 def get_bbox_area(x1, y1, x2, y2):
     width = abs(x2 - x1)
     height = abs(y2 - y1)
-    return width*height
+    return width * height
 
 def set_selected_bbox():
     global is_bbox_selected, selected_bbox
@@ -345,7 +349,7 @@ def get_close_icon(x1, y1, x2, y2):
     return (x2 - height), y1, x2, (y1 + height)
 
 def draw_close_icon(tmp_img, x1_c, y1_c, x2_c, y2_c):
-    red = (0,0,255)
+    red = (0, 0, 255)
     cv2.rectangle(tmp_img, (x1_c + 1, y1_c - 1), (x2_c, y2_c), red, -1)
     white = (255, 255, 255)
     cv2.line(tmp_img, (x1_c, y1_c), (x2_c, y2_c), white, 2)
@@ -397,7 +401,7 @@ class_rgb = [
 class_rgb = np.array(class_rgb)
 num_colors_missing = len(class_list) - len(class_rgb)
 if num_colors_missing > 0:
-    more_colors = np.random.randint(0, 255+1, size=(num_colors_missing, 3))
+    more_colors = np.random.randint(0, 255 + 1, size=(num_colors_missing, 3))
     class_rgb = np.vstack([class_rgb, more_colors])
 
 WINDOW_NAME = 'Bounding Box Labeler'
@@ -413,7 +417,6 @@ if last_class_index != 0:
     cv2.createTrackbar(TRACKBAR_CLASS, WINDOW_NAME, 0, last_class_index, change_class_index)
 
 change_img_index(0)
-edges_on = False
 
 if WITH_QT:
     cv2.displayOverlay(WINDOW_NAME, "Welcome!\n Press [h] for help.", 4000)
@@ -423,8 +426,11 @@ color = class_rgb[class_index].tolist()
 while True:
     tmp_img = channels[channel_index].copy()
     height, width = tmp_img.shape[:2]
-    if edges_on == True:
-        tmp_img = draw_edges(tmp_img)
+    if edges_on:
+        try:
+            tmp_img = draw_edges(tmp_img)
+        except ValueError as e:
+            print(f"Error applying edges: {e}")
 
     img_path = image_list[img_index]
     txt_path = get_txt_path(img_path)
@@ -491,7 +497,7 @@ while True:
 
         else:
             del image_list[img_index - 1]
-            last_img_index = len(image_list)-1
+            last_img_index = len(image_list) - 1
 
             remove_bad_data(bad_path, bad_text)
 
@@ -585,6 +591,7 @@ while True:
             cv2.displayOverlay(WINDOW_NAME, "Edges turned {}".format("ON" if edges_on else "OFF"), 1000)
         else:
             print("Edges turned {}".format("ON" if edges_on else "OFF"))
+        update_info_window()
 
     elif pressed_key == ord('q'):
         break
@@ -595,6 +602,7 @@ while True:
             cv2.displayOverlay(WINDOW_NAME, "Labels {}".format("ON" if show_labels else "OFF"), 1000)
         else:
             print("Labels {}".format("ON" if show_labels else "OFF"))
+        update_info_window()
 
     elif pressed_key == ord('b'):  # 'b' key to cycle through channels
         channel_index = (channel_index + 1) % len(channels)
@@ -602,6 +610,7 @@ while True:
             cv2.displayOverlay(WINDOW_NAME, "Channel {}".format(channel_index), 1000)
         else:
             print("Channel {}".format(channel_index))
+        update_info_window()
 
     """ Key Listeners END """
 
