@@ -1,3 +1,30 @@
+# Bounding Box Labeler Instructions
+1. Place your YOLO images into the directory specified as `img_path`.
+2. Place your YOLO labels into the directory specified as `new_label`.
+## Setup
+```bash
+conda create -n vis python=3.10
+pip install -r requirements.txt
+```
+## Run the Labeler
+```bash
+python run.py
+```
+# Bounding Box Visualizer Instructions
+Use the visualizer to check your labeled bounding boxes on the images.
+
+## Visualization Commands
+To visualize labels on images:
+```bash
+python labeled_img.py
+```
+For visualization-only mode:
+```bash
+python labeled_img.py --vis_only
+```
+--
+> OLD README.md
+#####
 # Bounding Box Labeler Documentation
 
 ## Overview
