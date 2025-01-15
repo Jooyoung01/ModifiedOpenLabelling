@@ -1,5 +1,5 @@
 # Bounding Box Labeler Instructions
-1. Place your YOLO images into the directory specified as `img_path`.
+1. Place your YOLO images into the directory specified as `images`.
 2. Place your YOLO labels into the directory specified as `new_label`.
 ## Setup
 ```bash
